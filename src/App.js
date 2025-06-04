@@ -14,9 +14,36 @@ function App() {
   const [playlist, setPlaylist] = useState([]);
   const audioRef = useRef(null);
 
+  // NEW: Recommended songs state
+  const [recommendedSongs, setRecommendedSongs] = useState([]);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, setUser);
     return () => unsub();
+  }, []);
+
+  // NEW: Fetch recommended/top songs from iTunes RSS feed
+  useEffect(() => {
+    async function fetchTopSongs() {
+      try {
+        const res = await fetch(
+  "https://itunes.apple.com/in/rss/topsongs/limit=10/json"
+);
+        const data = await res.json();
+        // Map the RSS feed data to match the iTunes search result structure
+        const songs = data.feed.entry.map((entry, idx) => ({
+          trackId: idx + 100000, // RSS doesn't provide trackId - generate one
+          trackName: entry["im:name"].label,
+          artistName: entry["im:artist"].label,
+          artworkUrl100: entry["im:image"][2].label, // largest image
+          previewUrl: entry.link[1]?.attributes?.href || "", // preview may not be present
+        }));
+        setRecommendedSongs(songs);
+      } catch (err) {
+        setRecommendedSongs([]); // fallback to empty
+      }
+    }
+    fetchTopSongs();
   }, []);
 
   // Logout handler for Navbar
@@ -66,19 +93,20 @@ function App() {
     }
   };
 
+  // Authentication page: only app title and AuthForm, NO Navbar
   if (!user) {
     return (
       <div className="App">
-        <h1 className="app-title">🎵 React Music App</h1>
-        <Navbar user={null} onLogout={handleLogout} />
+        <h1 className="app-title">🎵 Musify</h1>
         <AuthForm user={user} setUser={setUser} />
       </div>
     );
   }
 
+  // Music app page: app title, Navbar, and music features
   return (
     <div className="App">
-      <h1 className="app-title">🎵 React Music App</h1>
+      <h1 className="app-title">🎵 Musify</h1>
       <Navbar user={user} onLogout={handleLogout} />
       <form onSubmit={searchSongs}>
         <input
@@ -91,16 +119,39 @@ function App() {
       </form>
       <div className="results">
         <h2>Results</h2>
-        {tracks.map((track) => (
-          <div className="track" key={track.trackId}>
-            <img src={track.artworkUrl100} alt={track.trackName} />
-            <div>
-              <strong>{track.trackName}</strong>
-              <div>{track.artistName}</div>
-              <button onClick={() => playTrack(track)}>Play</button>
+        {/* Show recommended songs if no search has been performed */}
+        {tracks.length === 0 ? (
+          <>
+            <div style={{ fontWeight: "bold", marginBottom: 8, color: "#5c34d6" }}>
+              Recommended for you
             </div>
-          </div>
-        ))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+              {recommendedSongs.map((track) => (
+                <div className="track" key={track.trackId}>
+                  <img src={track.artworkUrl100} alt={track.trackName} />
+                  <div>
+                    <strong>{track.trackName}</strong>
+                    <div>{track.artistName}</div>
+                    {track.previewUrl && (
+                      <button onClick={() => playTrack(track)}>Play</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          tracks.map((track) => (
+            <div className="track" key={track.trackId}>
+              <img src={track.artworkUrl100} alt={track.trackName} />
+              <div>
+                <strong>{track.trackName}</strong>
+                <div>{track.artistName}</div>
+                <button onClick={() => playTrack(track)}>Play</button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
       <div className="player">
         <h2>Now Playing</h2>
