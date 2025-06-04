@@ -14,7 +14,7 @@ function App() {
   const [playlist, setPlaylist] = useState([]);
   const audioRef = useRef(null);
 
-  // NEW: Recommended songs state
+  // Recommended songs state
   const [recommendedSongs, setRecommendedSongs] = useState([]);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ function App() {
     return () => unsub();
   }, []);
 
-  // NEW: Fetch recommended/top songs from iTunes RSS feed
+  // Fetch recommended/top songs from iTunes RSS feed
   useEffect(() => {
     async function fetchTopSongs() {
       try {
